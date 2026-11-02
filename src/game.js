@@ -1,14 +1,9 @@
-// Pure Meowdoku rules: no Phaser here so everything can be unit tested.
+// Pure Whisker Grid rules: no Phaser here so everything can be unit tested.
 //
-// A board is n x n stored flat (index = row * n + col). Values are 1..n (a cat breed each), 0 is empty.
-// 4x4 uses 2x2 boxes, 6x6 uses boxes 2 rows tall and 3 wide, 9x9 uses 3x3 boxes.
-export const boxDims = (n) => (n === 4 ? [2, 2] : n === 6 ? [2, 3] : [3, 3])
+// An n x n board (flat, index = row * n + col) is split into n coloured regions.
+// Place exactly one cat in every row, column and colour region, and no two cats may touch (even diagonally).
 export const rowOf = (n, i) => Math.floor(i / n)
 export const colOf = (n, i) => i % n
-export const boxOf = (n, i) => {
-  const [br, bc] = boxDims(n)
-  return Math.floor(rowOf(n, i) / br) * (n / bc) + Math.floor(colOf(n, i) / bc)
-}
 
 export function mulberry32(seed) {
   let a = seed >>> 0
@@ -29,136 +24,127 @@ const shuffle = (arr, rnd) => {
   return arr
 }
 
-const popcount = (m) => {
-  let c = 0
-  for (; m; m &= m - 1) c++
-  return c
-}
+export const touching = (n, a, b) =>
+  a !== b && Math.abs(rowOf(n, a) - rowOf(n, b)) <= 1 && Math.abs(colOf(n, a) - colOf(n, b)) <= 1
 
-export const groupCells = (n, kind, k) => {
-  const out = []
-  for (let i = 0; i < n * n; i++) {
-    if ((kind === 'row' ? rowOf(n, i) : kind === 'col' ? colOf(n, i) : boxOf(n, i)) === k) out.push(i)
-  }
-  return out
-}
+export const clashes = (n, region, a, b) =>
+  a !== b && (rowOf(n, a) === rowOf(n, b) || colOf(n, a) === colOf(n, b) || region[a] === region[b] || touching(n, a, b))
 
-export const isPeer = (n, a, b) => a !== b && (rowOf(n, a) === rowOf(n, b) || colOf(n, a) === colOf(n, b) || boxOf(n, a) === boxOf(n, b))
-
-// Bitmask of the values that may still go in cell i (bit v-1 = value v).
-export function candidates(n, grid, i) {
-  let used = 0
-  for (let j = 0; j < n * n; j++) if (grid[j] && (j === i ? false : isPeer(n, i, j))) used |= 1 << (grid[j] - 1)
-  return ((1 << n) - 1) & ~used
-}
-
-// Counts solutions (up to limit) by backtracking on the cell with the fewest options.
-export function solveCount(n, grid, limit = 2, rnd = null) {
-  const g = grid.slice()
-  const rows = Array(n).fill(0)
-  const cols = Array(n).fill(0)
-  const boxes = Array(n).fill(0)
-  const full = (1 << n) - 1
-  const R = []
-  const C = []
-  const Bx = []
-  for (let i = 0; i < n * n; i++) {
-    R.push(rowOf(n, i))
-    C.push(colOf(n, i))
-    Bx.push(boxOf(n, i))
-    if (g[i]) {
-      const bit = 1 << (g[i] - 1)
-      if ((rows[R[i]] | cols[C[i]] | boxes[Bx[i]]) & bit) return { count: 0, solution: null }
-      rows[R[i]] |= bit
-      cols[C[i]] |= bit
-      boxes[Bx[i]] |= bit
-    }
-  }
+// Count solutions (up to limit) for a region map.
+export function solveCount(n, region, limit = 2) {
   let count = 0
-  let solution = null
-  const rec = () => {
-    let best = -1
-    let bestMask = 0
-    let bestCnt = 99
-    for (let i = 0; i < n * n; i++) {
-      if (g[i]) continue
-      const m = full & ~(rows[R[i]] | cols[C[i]] | boxes[Bx[i]])
-      const cnt = popcount(m)
-      if (cnt === 0) return
-      if (cnt < bestCnt) {
-        best = i
-        bestMask = m
-        bestCnt = cnt
-        if (cnt === 1) break
-      }
-    }
-    if (best === -1) {
+  const go = (r, colMask, regMask, prev) => {
+    if (count >= limit) return
+    if (r === n) {
       count++
-      solution ||= g.slice()
       return
     }
-    const vals = []
-    for (let v = 1; v <= n; v++) if (bestMask & (1 << (v - 1))) vals.push(v)
-    if (rnd) shuffle(vals, rnd)
-    for (const v of vals) {
-      const bit = 1 << (v - 1)
-      g[best] = v
-      rows[R[best]] |= bit
-      cols[C[best]] |= bit
-      boxes[Bx[best]] |= bit
-      rec()
-      g[best] = 0
-      rows[R[best]] &= ~bit
-      cols[C[best]] &= ~bit
-      boxes[Bx[best]] &= ~bit
-      if (count >= limit) return
+    for (let c = 0; c < n; c++) {
+      if (colMask & (1 << c) || Math.abs(c - prev) <= 1) continue
+      const g = region[r * n + c]
+      if (regMask & (1 << g)) continue
+      go(r + 1, colMask | (1 << c), regMask | (1 << g), c)
     }
   }
-  rec()
-  return { count, solution }
+  go(0, 0, 0, -9)
+  return count
 }
 
-export const isValidSolution = (n, grid) => {
-  if (grid.some((v) => v < 1 || v > n)) return false
-  for (const kind of ['row', 'col', 'box']) {
-    for (let k = 0; k < n; k++) {
-      const seen = new Set(groupCells(n, kind, k).map((i) => grid[i]))
-      if (seen.size !== n) return false
+function randomCats(n, rnd) {
+  const cols = []
+  const used = Array(n).fill(false)
+  const go = (r) => {
+    if (r === n) return true
+    for (const c of shuffle([...Array(n).keys()], rnd)) {
+      if (used[c] || (r > 0 && Math.abs(c - cols[r - 1]) <= 1)) continue
+      used[c] = true
+      cols[r] = c
+      if (go(r + 1)) return true
+      used[c] = false
+    }
+    return false
+  }
+  return go(0) ? cols : null
+}
+
+// Grow n contiguous regions outward from the cat cells.
+function growRegions(n, cats, rnd) {
+  const region = Array(n * n).fill(-1)
+  const frontier = []
+  cats.forEach((cell, k) => {
+    region[cell] = k
+    frontier.push(cell)
+  })
+  let left = n * n - n
+  while (left > 0) {
+    const f = Math.floor(rnd() * frontier.length)
+    const cell = frontier[f]
+    const r = rowOf(n, cell)
+    const c = colOf(n, cell)
+    const opts = []
+    if (r > 0) opts.push(cell - n)
+    if (r < n - 1) opts.push(cell + n)
+    if (c > 0) opts.push(cell - 1)
+    if (c < n - 1) opts.push(cell + 1)
+    const free = opts.filter((x) => region[x] < 0)
+    if (!free.length) {
+      frontier.splice(f, 1)
+      continue
+    }
+    const pick = free[Math.floor(rnd() * free.length)]
+    region[pick] = region[cell]
+    frontier.push(pick)
+    left--
+  }
+  return region
+}
+
+// Deterministic for a seed, and always has exactly one solution.
+export function generate({ size: n, seed }) {
+  const rnd = mulberry32(seed)
+  for (let attempt = 0; attempt < 200000; attempt++) {
+    const cols = randomCats(n, rnd)
+    if (!cols) continue
+    const sol = cols.map((c, r) => r * n + c)
+    const region = growRegions(n, sol, rnd)
+    if (solveCount(n, region, 2) === 1) {
+      // Number regions in reading order so the colours spread out nicely.
+      const order = []
+      region.forEach((g) => !order.includes(g) && order.push(g))
+      const map = new Map(order.map((g, i) => [g, i]))
+      return { n, size: n, region: region.map((g) => map.get(g)), sol }
     }
   }
-  return true
+  throw new Error('could not generate board')
 }
 
-// Builds a full board, then blanks cells one by one while the answer stays unique.
-export function generate({ size: n, givens, seed }) {
-  const rnd = mulberry32(seed * 977 + 13)
-  const sol = solveCount(n, Array(n * n).fill(0), 1, rnd).solution
-  const grid = sol.slice()
-  let filled = n * n
-  for (const i of shuffle([...grid.keys()], rnd)) {
-    if (filled <= givens) break
-    const v = grid[i]
-    grid[i] = 0
-    if (solveCount(n, grid, 2).count === 1) filled--
-    else grid[i] = v
-  }
-  return { n, sol, puzzle: grid, givens: filled, size: n }
-}
-
-// Which empty cell to help with: the selected one if possible, else the most constrained.
-export function nextHint(n, grid, sel = -1) {
-  if (sel >= 0 && grid[sel] === 0) return sel
-  let best = -1
-  let bestCnt = 99
-  for (let i = 0; i < n * n; i++) {
-    if (grid[i]) continue
-    const c = popcount(candidates(n, grid, i))
-    if (c < bestCnt) {
-      best = i
-      bestCnt = c
+// Cat cells that break a rule. cats is an array of cell indexes.
+export function conflicts(n, region, cats) {
+  const bad = new Set()
+  for (let x = 0; x < cats.length; x++) {
+    for (let y = x + 1; y < cats.length; y++) {
+      if (clashes(n, region, cats[x], cats[y])) {
+        bad.add(cats[x])
+        bad.add(cats[y])
+      }
     }
   }
-  return best
+  return bad
+}
+
+export const isSolved = (n, region, cats) => cats.length === n && conflicts(n, region, cats).size === 0
+
+// The solution cell to show next: the first row whose solution cat is not placed yet.
+export function nextHint(n, sol, cats) {
+  const have = new Set(cats)
+  for (let r = 0; r < n; r++) if (!have.has(sol[r])) return sol[r]
+  return -1
+}
+
+// Cells that certainly hold no cat, picked at random from those not already crossed off.
+export function mouseCells(n, sol, open, count, rnd = Math.random) {
+  const solSet = new Set(sol)
+  return shuffle(open.filter((i) => !solSet.has(i)), rnd).slice(0, count)
 }
 
 export function starsFor(mistakes, hints) {
@@ -171,36 +157,25 @@ export function starsFor(mistakes, hints) {
 export const LEVELS_PER_WORLD = 12
 export const TOTAL_LEVELS = 60
 export const WORLDS = [
-  { name: 'Kitten Nursery', color: 0xf472b6, bg: ['#5b2a6e', '#1d0b2b'], blurb: 'A 4×4 board. Each cat once per row, column and box.' },
-  { name: 'Cozy Cottage', color: 0xfb923c, bg: ['#6b3b1d', '#241008'], blurb: 'Bigger 6×6 boards with wide 2×3 boxes.' },
-  { name: 'Alley Cats', color: 0x34d399, bg: ['#0f4a45', '#04191a'], blurb: 'The full 9×9 board with nine different cats.' },
-  { name: 'Whisker Heights', color: 0x60a5fa, bg: ['#1e3a74', '#08132b'], blurb: 'Fewer clues. Try pencilling in notes.' },
-  { name: 'Grand Meowster', color: 0xc084fc, bg: ['#47206e', '#14082b'], blurb: 'The hardest boards in the cat kingdom.' },
+  { name: 'Kitten Corner', color: 0xf472b6, bg: ['#5b2a6e', '#1d0b2b'], blurb: 'Small boards with 4 and 5 colours.' },
+  { name: 'Cozy Cottage', color: 0xfb923c, bg: ['#6b3b1d', '#241008'], blurb: 'Five and six colours. Look for tight regions.' },
+  { name: 'Alley Cats', color: 0x34d399, bg: ['#0f4a45', '#04191a'], blurb: 'Six and seven colours. Cats may not touch!' },
+  { name: 'Whisker Heights', color: 0x60a5fa, bg: ['#1e3a74', '#08132b'], blurb: 'Seven and eight colours of puzzling.' },
+  { name: 'Grand Meowster', color: 0xc084fc, bg: ['#47206e', '#14082b'], blurb: 'The biggest boards, up to nine colours.' },
 ]
 
-const GIVENS = [
-  (k) => 12 - Math.round(k * 0.45),
-  (k) => 24 - Math.round(k * 0.8),
-  (k) => 44 - Math.round(k * 0.7),
-  (k) => 36 - Math.round(k * 0.55),
-  (k) => 32 - Math.round(k * 0.6),
-]
-
-export function levelSpec(n) {
-  const w = Math.floor((n - 1) / LEVELS_PER_WORLD)
-  const k = (n - 1) % LEVELS_PER_WORLD
-  return { size: w === 0 ? 4 : w === 1 ? 6 : 9, givens: GIVENS[w](k), seed: n * 11 + 5 }
-}
+// More colours means a bigger board and a harder puzzle.
+export const sizeFor = (level) => Math.min(9, 4 + Math.floor((level - 1) / 10))
+export const levelSpec = (level) => ({ size: sizeFor(level), seed: level * 7919 + 13 })
 
 const cache = new Map()
-export function levelPuzzle(n) {
-  if (!cache.has(n)) cache.set(n, generate(levelSpec(n)))
-  return cache.get(n)
+export function levelPuzzle(level) {
+  if (!cache.has(level)) cache.set(level, generate(levelSpec(level)))
+  return cache.get(level)
 }
 
-export const tagsOf = (spec) => `${spec.size}×${spec.size}`
+export const tagsOf = (spec) => `${spec.size} colors`
 
 export function rushSpec(solved, seed) {
-  const s = solved < 3 ? { size: 4, givens: 10 } : solved < 7 ? { size: 6, givens: 20 } : { size: 9, givens: 40 }
-  return { ...s, seed: seed + solved * 31 }
+  return { size: Math.min(8, 4 + Math.floor(solved / 2)), seed: seed + solved * 31 }
 }

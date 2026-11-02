@@ -1,4 +1,4 @@
-const KEY = 'meowdoku-save-v1'
+const KEY = 'whiskergrid-save-v1'
 
 const defaults = () => ({ unlocked: 1, stars: {}, bestRush: 0, muted: false })
 

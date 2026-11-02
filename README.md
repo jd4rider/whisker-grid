@@ -1,18 +1,17 @@
-# Meowdoku
+# Whisker Grid
 
-A cat-themed sudoku: one of each cat in every row, column and box. Built with Phaser 4, Vite and Electron — playable in the browser and as a desktop app for macOS, Windows and Linux.
+A cat puzzle in the spirit of Queens and Minesweeper: one cat per colour, row and column, and no two cats may touch. Built with Phaser 4, Vite and Electron — playable in the browser and as a desktop app for macOS, Windows and Linux.
 
-- Play in your browser: <https://jd4rider.github.io/meowdoku/play/>
-- Downloads: <https://github.com/jd4rider/meowdoku/releases/latest>
+- Play in your browser: <https://jd4rider.github.io/whisker-grid/play/>
+- Downloads: <https://github.com/jd4rider/whisker-grid/releases/latest>
 
 ## How to play
 
-Sudoku with cats! Select a square, then tap a cat to place it. Every row, column and box must hold each cat exactly once.
+Every colour, row and column gets exactly one cat, and no two cats may touch (diagonals count).
 
-- **4x4, 6x6 and 9x9** boards. **Notes** let you pencil in candidates.
-- **Hint** fills a cat, **Undo** and **Erase** fix slips. Fewer mistakes and hints means more stars.
-- **Journey** - 60 levels across 5 worlds.
-- **Rush** - 120 seconds. Every solved puzzle adds time; wrong cats and hints cost time.
+- **Tap** a square to cross it out, **drag** across squares to cross out many, **double tap** to place a cat.
+- Power-ups: **💡 Hint** shows where a cat goes, **🐱 Reveal** places it, **🐭 Mouse** marks squares with no cat.
+- **Journey** - 60 generated levels from 4 to 9 colours. More colours means harder. **Rush** - 120 seconds of endless boards.
 
 ## Develop
 

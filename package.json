@@ -1,8 +1,8 @@
 {
-  "name": "meowdoku",
+  "name": "whisker-grid",
   "private": true,
   "version": "0.1.0",
-  "description": "A cat-themed sudoku: one of each cat in every row, column and box.",
+  "description": "A cat puzzle: one cat per colour, row and column, and no cats touching.",
   "author": "jd4rider",
   "type": "module",
   "main": "electron/main.cjs",
@@ -27,8 +27,8 @@
     "vite": "^8.3.5"
   },
   "build": {
-    "appId": "com.jd4rider.meowdoku",
-    "productName": "Meowdoku",
+    "appId": "com.jd4rider.whisker-grid",
+    "productName": "Whisker Grid",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -41,7 +41,7 @@
     "mac": {
       "category": "public.app-category.puzzle-games",
       "icon": "build/icon.icns",
-      "artifactName": "Meowdoku-mac-${arch}.${ext}",
+      "artifactName": "Whisker-Grid-mac-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
@@ -53,7 +53,7 @@
       ]
     },
     "dmg": {
-      "title": "Meowdoku ${version}"
+      "title": "Whisker Grid ${version}"
     },
     "win": {
       "icon": "build/icon-1024.png",
@@ -69,12 +69,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Meowdoku-win-setup.${ext}"
+      "artifactName": "Whisker-Grid-win-setup.${ext}"
     },
     "linux": {
       "category": "Game",
       "icon": "build/icon-1024.png",
-      "artifactName": "Meowdoku-linux-${arch}.${ext}",
+      "artifactName": "Whisker-Grid-linux-${arch}.${ext}",
       "target": [
         "AppImage"
       ]

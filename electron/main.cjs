@@ -9,7 +9,7 @@ function createWindow() {
     height: 920,
     minWidth: 400,
     minHeight: 540,
-    title: 'Meowdoku',
+    title: 'Whisker Grid',
     backgroundColor: '#1d0b2b',
     show: false,
     autoHideMenuBar: true,
