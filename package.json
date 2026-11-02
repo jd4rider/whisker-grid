@@ -1,7 +1,7 @@
 {
   "name": "whisker-grid",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A cat puzzle: one cat per colour, row and column, and no cats touching.",
   "author": "jd4rider",
   "type": "module",
