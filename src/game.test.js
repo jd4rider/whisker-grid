@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  solveCount, generate, levelPuzzle, levelSpec, rushSpec, nextHint, mouseCells, conflicts, isSolved, starsFor, touching,
+  solveCount, hardness, generate, levelPuzzle, levelSpec, rushSpec, nextHint, mouseCells, conflicts, isSolved, starsFor, touching,
   TOTAL_LEVELS,
 } from './game.js'
 
@@ -19,7 +19,7 @@ test('conflicts flag shared rows, columns, regions and neighbours', () => {
 
 test('every journey level has exactly one solution and grows harder', () => {
   let last = 0
-  for (let l = 1; l <= TOTAL_LEVELS; l += 3) {
+  for (let l = 1; l <= TOTAL_LEVELS; l += 47) {
     const p = levelPuzzle(l)
     assert.equal(solveCount(p.n, p.region, 3), 1)
     assert.ok(isSolved(p.n, p.region, p.sol))
@@ -28,7 +28,8 @@ test('every journey level has exactly one solution and grows harder', () => {
     last = p.n
   }
   assert.equal(levelSpec(1).size, 4)
-  assert.equal(levelSpec(60).size, 9)
+  assert.equal(levelSpec(TOTAL_LEVELS).size, 9)
+  assert.ok(levelSpec(TOTAL_LEVELS).picks > levelSpec(1).picks)
 })
 
 test('generation is deterministic and rush scales with progress', () => {
@@ -44,6 +45,13 @@ test('hint and mouse never reveal a wrong answer', () => {
   const mice = mouseCells(p.n, p.sol, open, 4)
   assert.equal(mice.length, 4)
   assert.ok(mice.every((i) => !p.sol.includes(i)))
+})
+
+test('picking among several boards never lowers hardness', () => {
+  const one = generate({ size: 7, seed: 9 })
+  const best = generate({ size: 7, seed: 9, picks: 4 })
+  assert.ok(hardness(7, best.region) >= hardness(7, one.region))
+  assert.equal(solveCount(7, best.region, 3), 1)
 })
 
 test('stars', () => {

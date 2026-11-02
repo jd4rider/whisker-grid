@@ -11,7 +11,7 @@ Every colour, row and column gets exactly one cat, and no two cats may touch (di
 
 - **Tap** a square to cross it out, **drag** across squares to cross out many, **double tap** to place a cat.
 - Power-ups: **💡 Hint** shows where a cat goes, **🐱 Reveal** places it, **🐭 Mouse** marks squares with no cat.
-- **Journey** - 60 generated levels from 4 to 9 colours. More colours means harder. **Rush** - 120 seconds of endless boards.
+- **Journey** - 1000 procedurally generated levels (seeded, so every level is the same for everyone) from 4 to 9 colours. More colours means harder. **Rush** - 120 seconds of endless boards.
 
 ## Develop
 

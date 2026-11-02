@@ -50,6 +50,23 @@ export function solveCount(n, region, limit = 2) {
   return count
 }
 
+// Search effort of the solver: a rough measure of how hard a board is to deduce.
+export function hardness(n, region) {
+  let nodes = 0
+  const go = (r, colMask, regMask, prev) => {
+    nodes++
+    if (r === n) return
+    for (let c = 0; c < n; c++) {
+      if (colMask & (1 << c) || Math.abs(c - prev) <= 1) continue
+      const g = region[r * n + c]
+      if (regMask & (1 << g)) continue
+      go(r + 1, colMask | (1 << c), regMask | (1 << g), c)
+    }
+  }
+  go(0, 0, 0, -9)
+  return nodes
+}
+
 function randomCats(n, rnd) {
   const cols = []
   const used = Array(n).fill(false)
@@ -100,22 +117,30 @@ function growRegions(n, cats, rnd) {
 }
 
 // Deterministic for a seed, and always has exactly one solution.
-export function generate({ size: n, seed }) {
+// With picks > 1 several boards are generated and the hardest one is kept.
+export function generate({ size: n, seed, picks = 1 }) {
   const rnd = mulberry32(seed)
-  for (let attempt = 0; attempt < 200000; attempt++) {
+  let best = null
+  let bestScore = -1
+  for (let attempt = 0; attempt < 200000 && picks > 0; attempt++) {
     const cols = randomCats(n, rnd)
     if (!cols) continue
     const sol = cols.map((c, r) => r * n + c)
     const region = growRegions(n, sol, rnd)
-    if (solveCount(n, region, 2) === 1) {
-      // Number regions in reading order so the colours spread out nicely.
-      const order = []
-      region.forEach((g) => !order.includes(g) && order.push(g))
-      const map = new Map(order.map((g, i) => [g, i]))
-      return { n, size: n, region: region.map((g) => map.get(g)), sol }
+    if (solveCount(n, region, 2) !== 1) continue
+    picks--
+    const score = hardness(n, region)
+    if (score > bestScore) {
+      bestScore = score
+      best = { sol, region }
     }
   }
-  throw new Error('could not generate board')
+  if (!best) throw new Error('could not generate board')
+  // Number regions in reading order so the colours spread out nicely.
+  const order = []
+  best.region.forEach((g) => !order.includes(g) && order.push(g))
+  const map = new Map(order.map((g, i) => [g, i]))
+  return { n, size: n, region: best.region.map((g) => map.get(g)), sol: best.sol }
 }
 
 // Cat cells that break a rule. cats is an array of cell indexes.
@@ -154,19 +179,23 @@ export function starsFor(mistakes, hints) {
 
 // ---------- levels ----------
 
+// Journey is procedural: level N always rebuilds the same board from its seed, so there is no level data to store.
 export const LEVELS_PER_WORLD = 12
-export const TOTAL_LEVELS = 60
+export const TOTAL_LEVELS = 1000
 export const WORLDS = [
-  { name: 'Kitten Corner', color: 0xf472b6, bg: ['#5b2a6e', '#1d0b2b'], blurb: 'Small boards with 4 and 5 colours.' },
-  { name: 'Cozy Cottage', color: 0xfb923c, bg: ['#6b3b1d', '#241008'], blurb: 'Five and six colours. Look for tight regions.' },
-  { name: 'Alley Cats', color: 0x34d399, bg: ['#0f4a45', '#04191a'], blurb: 'Six and seven colours. Cats may not touch!' },
-  { name: 'Whisker Heights', color: 0x60a5fa, bg: ['#1e3a74', '#08132b'], blurb: 'Seven and eight colours of puzzling.' },
-  { name: 'Grand Meowster', color: 0xc084fc, bg: ['#47206e', '#14082b'], blurb: 'The biggest boards, up to nine colours.' },
+  { name: 'Kitten Corner', color: 0xf472b6, bg: ['#5b2a6e', '#1d0b2b'], blurb: 'Cozy boards to purr through.' },
+  { name: 'Cozy Cottage', color: 0xfb923c, bg: ['#6b3b1d', '#241008'], blurb: 'Look for tight regions.' },
+  { name: 'Alley Cats', color: 0x34d399, bg: ['#0f4a45', '#04191a'], blurb: 'Cats may not touch!' },
+  { name: 'Whisker Heights', color: 0x60a5fa, bg: ['#1e3a74', '#08132b'], blurb: 'Think a few moves ahead.' },
+  { name: 'Grand Meowster', color: 0xc084fc, bg: ['#47206e', '#14082b'], blurb: 'Only the sharpest cats solve these.' },
 ]
+export const PACKS = Math.ceil(TOTAL_LEVELS / LEVELS_PER_WORLD)
 
-// More colours means a bigger board and a harder puzzle.
-export const sizeFor = (level) => Math.min(9, 4 + Math.floor((level - 1) / 10))
-export const levelSpec = (level) => ({ size: sizeFor(level), seed: level * 7919 + 13 })
+// Board size climbs from 4 to 9 colours over the first 300 levels.
+export const sizeFor = (level) => Math.min(9, 4 + Math.floor((level - 1) / 60))
+// After that, levels get harder by choosing the trickiest of several generated boards.
+export const picksFor = (level) => (level <= 300 ? 1 : Math.min(2, 1 + Math.floor((level - 300) / 350)))
+export const levelSpec = (level) => ({ size: sizeFor(level), seed: level * 7919 + 13, picks: picksFor(level) })
 
 const cache = new Map()
 export function levelPuzzle(level) {

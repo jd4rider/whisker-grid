@@ -18,7 +18,8 @@ const EMPTY = 0
 const CROSS = 1
 const MOUSE = 2
 const CAT = 3
-const worldOf = (level) => Math.min(WORLDS.length - 1, Math.floor((level - 1) / LEVELS_PER_WORLD))
+const packOf = (level) => Math.floor((level - 1) / LEVELS_PER_WORLD)
+const worldOf = (level) => packOf(level) % WORLDS.length
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -394,9 +395,10 @@ export default class GameScene extends Phaser.Scene {
   async intro() {
     const label = `Level ${this.level}`
     const first = this.level === 1 || sizeFor(this.level) !== sizeFor(this.level - 1)
+    const packStart = (this.level - 1) % LEVELS_PER_WORLD === 0
     const sub = this.level === 1
       ? 'One cat per color, row and column.\nCats can’t touch — not even diagonally!\nTap to cross out, drag to cross many, double tap for a cat.'
-      : first ? `New: ${sizeFor(this.level)} colors on a ${sizeFor(this.level)}×${sizeFor(this.level)} board!` : this.world.blurb
+      : first ? `New: ${sizeFor(this.level)} colors on a ${sizeFor(this.level)}×${sizeFor(this.level)} board!` : packStart ? `${this.world.name} · Pack ${packOf(this.level) + 1}` : this.world.blurb
     sfx.whoosh()
     const cy = BOARD_TOP + BOARD_H / 2
     const band = this.add.rectangle(W / 2, cy, W, 220, 0x000000, 0.78).setDepth(40).setScale(1, 0)
@@ -410,7 +412,7 @@ export default class GameScene extends Phaser.Scene {
       this.tween({ targets: t1, x: W / 2, duration: 420, ease: 'Back.Out' }),
       this.tween({ targets: t2, x: W / 2, duration: 520, ease: 'Cubic.Out' }),
     ])
-    await this.delay(this.level === 1 ? 2600 : first ? 1600 : 800)
+    await this.delay(this.level === 1 ? 2600 : first || packStart ? 1500 : 800)
     await Promise.all([
       this.tween({ targets: t1, x: W + 400, duration: 300, ease: 'Cubic.In' }),
       this.tween({ targets: t2, x: -400, duration: 300, ease: 'Cubic.In' }),
@@ -517,7 +519,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   leave() {
-    fade(this, this.mode === 'puzzle' ? 'levels' : 'menu', { world: this.worldIndex })
+    fade(this, this.mode === 'puzzle' ? 'levels' : 'menu', { world: packOf(this.level) })
   }
 
   showPanel({ won, title, stars, lines = [] }) {
