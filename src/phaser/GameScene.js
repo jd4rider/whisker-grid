@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { openTipJar } from './support.js'
 import { W, H, background, button, text, fade } from './common.js'
 import { ring, flashAt, popText, grains, hearts } from './fx.js'
 import { audioState, sfx } from '../sound.js'
@@ -527,8 +528,8 @@ export default class GameScene extends Phaser.Scene {
     this.panel = p
     p.add(this.add.rectangle(W / 2, H / 2, W, H, 0x12041d, 0.82).setInteractive())
     const card = this.add.graphics()
-    card.fillStyle(0x2a0a3d, 1).fillRoundedRect(60, 170, W - 120, 500, 24)
-    card.lineStyle(3, won ? 0xf472b6 : 0xfb7185, 0.9).strokeRoundedRect(60, 170, W - 120, 500, 24)
+    card.fillStyle(0x2a0a3d, 1).fillRoundedRect(60, 170, W - 120, 540, 24)
+    card.lineStyle(3, won ? 0xf472b6 : 0xfb7185, 0.9).strokeRoundedRect(60, 170, W - 120, 540, 24)
     p.add(card)
     p.add(text(this, W / 2, 225, title, 36, won ? '#fde68a' : '#fda4af', { fontStyle: 'bold' }).setOrigin(0.5))
     if (won) {
@@ -547,13 +548,23 @@ export default class GameScene extends Phaser.Scene {
     const add = (label, y, fn, color) => p.add(button(this, W / 2, y, label, fn, { w: 280, h: 52, color }))
     if (this.mode === 'puzzle') {
       const more = won && this.level < TOTAL_LEVELS
-      if (more) add('Next level ▶', 510, () => this.next(), 0xc026d3)
-      add('Replay', more ? 570 : 510, () => this.begin(true), 0x86198f)
-      add('Levels', more ? 630 : 570, () => this.leave(), 0x374151)
+      if (more) add('Next level ▶', 480, () => this.next(), 0xc026d3)
+      add('Replay', more ? 540 : 510, () => this.begin(true), 0x86198f)
+      add('Levels', more ? 600 : 570, () => this.leave(), 0x374151)
     } else {
       add('Play again', 500, () => fade(this, 'game', { mode: 'rush' }), 0xc026d3)
       add('Menu', 560, () => this.leave(), 0x374151)
     }
+    // Quiet support link: results panel only, under the actions inside the card.
+    p.add(
+      button(this, W / 2, 674, '☕ Buy me a coffee', () => openTipJar(), {
+        w: 280,
+        h: 44,
+        size: 17,
+        color: 0x3b1230,
+        textColor: '#fbcfe8',
+      }),
+    )
     p.setAlpha(0)
     this.tweens.add({ targets: p, alpha: 1, duration: 300 })
   }
